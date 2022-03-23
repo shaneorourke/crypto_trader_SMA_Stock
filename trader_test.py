@@ -18,7 +18,7 @@ c = conn.cursor()
 client = Client(binance_keys.API_KEY,binance_keys.SECRET_KEY)
 
 binance_buy = False
-lags = config.get('DEFAULT','lags') # 5 lags is good, up for testing e.g. 25 NOT in live use 3-5 lags
+lags = 35 # 5 lags is good, up for testing e.g. 25 NOT in live use 3-5 lags
 printout = True
 
 today = datetime.now().date()
