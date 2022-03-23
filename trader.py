@@ -21,6 +21,17 @@ binance_buy = config.get('DEFAULT','binance_buy')
 lags = config.get('DEFAULT','lags') # 5 lags is good, up for testing e.g. 25 NOT in live use 3-5 lags
 printout = config.get('DEFAULT','printout')
 
+if binance_buy == 'True':
+    binance_buy = True
+else:
+    binance_buy = False
+
+if printout == 'True':
+    printout = True
+else:
+    printout = False
+
+
 today = datetime.now().date()
 today = str(today).replace('-','')
 
