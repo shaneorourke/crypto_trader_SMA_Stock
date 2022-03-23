@@ -211,4 +211,6 @@ def strategy(pair,binance_buy,printout):
             update_trigger(pair,'')
     insert_log(pair,position,trigger,close,kline,dline,rsi,macd,qty,binance_buy,lags,printout)
 
-strategy('BTCUSDT',binance_buy,printout)
+while True:
+    strategy('BTCUSDT',binance_buy,printout)
+    last_update()
