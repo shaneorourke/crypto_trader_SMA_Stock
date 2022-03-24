@@ -141,7 +141,7 @@ def get_trigger(pair):
     trig = c.fetchone()
     trig = clean_up_sql_out(trig,0)
     if trig == 'None' or trig == None:
-        c.execute(f'INSERT INTO trigger VALUES ("{pair}","None",NULL)')
+        c.execute(f'INSERT INTO trigger (Currency, trigger) VALUES ("{pair}","None")')
     conn.commit()
     return trig
 
