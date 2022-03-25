@@ -39,7 +39,7 @@ select case when (select total from sells) - (select total from buys) is NULL th
 
 #Last Run
 last_run = """with headers as(select "Currency","Open","High","Low","Close","K","D","RSI","MACD","index","Time",1 as "order")
-, data as (select Currency,Open,High,Low,Close,round("%K",2),round("%D",2),round(rsi,2),round(macd,2),"index",Time,2 from hourlydata order by "Index" DESC LIMIT 1)
+, data as (select Currency,Open,High,Low,Close,round("%K",2),round("%D",2),round(rsi,2),round(macd,2),"index",Time,2 from hourlydata order by "Time" DESC LIMIT 1)
 , joined as (select * from headers
 union 
 select * from data)
