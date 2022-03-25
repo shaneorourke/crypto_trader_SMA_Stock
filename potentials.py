@@ -1,8 +1,16 @@
 from binance import Client
 import pandas as pd
 import ta
+import configparser
+
+config = configparser.ConfigParser()
+config.read('config.cfg')
+
+
+lags = int(config.get('DEFAULT','lags')) # 5 lags is good, up for testing e.g. 25 NOT in live use 3-5 lags
 
 client = Client("","")
+
 
 def gethourlydata(symbol):
     frame = pd.DataFrame(client.get_historical_klines(symbol,'1h','50 hours ago UTC'))
@@ -22,8 +30,19 @@ def applytechnicals(df):
     df['SlowSMA'] = df.Close.rolling(25).mean()
     df.dropna(inplace=True)
 
-def wait_trigger_Stock_RSI_MACD(kline,dline,rsi,macd):
-    if kline < 20 and dline < 20 and rsi > 50 and macd > 0: #wait for the signals to hit)
+
+def get_stock_drop_trigger(lags,df):
+    outcome = False
+    for i in range(lags):
+        lookback = lags - i
+        k = df['%K'].iloc[-lookback]
+        d = df['%D'].iloc[-lookback]
+        if k < 20 and d < 20:
+            outcome = True
+    return outcome
+
+def wait_trigger_Stock_RSI_MACD(lags,kline,dline,rsi,macd,df):
+    if get_stock_drop_trigger(lags,df) and kline > 20 and dline > 20 and rsi > 50 and macd > 0: #wait for the signals to hit
         return True
     else:
         return False
@@ -54,7 +73,7 @@ def strategy(pair):
     trigger1 = ''
     trigger2 = ''
     print(f'Close:{round(Close,2)}')
-    if wait_trigger_Stock_RSI_MACD(kline,dline,rsi,macd): #wait for the signals to hit
+    if wait_trigger_Stock_RSI_MACD(lags,kline,dline,rsi,macd,df): #wait for the signals to hit
         trigger1=f'Prepare for BUY - Stock RSI MACD'
     if Buy_Trigger_Fast_SMA_Bounce(FastSMA,SlowSMA,Close): #wait for the signals to hit
         trigger2=f'Prepare for BUY - Stock RSI MACD'
