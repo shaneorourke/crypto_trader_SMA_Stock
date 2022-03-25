@@ -1,31 +1,8 @@
 from binance import Client
 import pandas as pd
 import ta
-from datetime import datetime
-import configparser
-
-config = configparser.ConfigParser()
-config.read('config.cfg')
 
 client = Client("","")
-
-lags = config.get('DEFAULT','lags') # 5 lags is good, up for testing e.g. 25 NOT in live use 3-5 lags
-
-today = datetime.now().date()
-today = str(today).replace('-','')
-
-replace = ['(',')',',','./data/','csv','.','[',']']
-replace_number = ['(',')',',','[',']']
-
-def clean_up_sql_out(text,isnumber):
-    if isnumber == 1:
-        for s in replace_number:
-            text = str(text).replace(s,'')      
-    else:
-        for s in replace:
-            text = str(text).replace(s,'')
-    return text
-
 
 def gethourlydata(symbol):
     frame = pd.DataFrame(client.get_historical_klines(symbol,'1h','50 hours ago UTC'))
@@ -41,32 +18,49 @@ def applytechnicals(df):
     df['%D'] = df['%K'].rolling(3).mean()
     df['rsi'] = ta.momentum.rsi(df.Close,window=14)
     df['macd'] = ta.trend.macd_diff(df.Close)
+    df['FastSMA'] = df.Close.rolling(7).mean()
+    df['SlowSMA'] = df.Close.rolling(25).mean()
     df.dropna(inplace=True)
 
-def wait_trigger(trigger,kline,dline,rsi,macd):
-    if trigger == '' and kline < 20 and dline < 20 and rsi > 50 and macd > 0: #wait for the signals to hit
+def wait_trigger_Stock_RSI_MACD(kline,dline,rsi,macd):
+    if kline < 20 and dline < 20 and rsi > 50 and macd > 0: #wait for the signals to hit)
         return True
     else:
         return False
 
-def buy_trigger(trigger,kline,dline):
-    if trigger == 'Preparing for BUY' and kline > 20 and dline > 20:#once signals are set above then wait for these for a buy
-        return True
+def Buy_Trigger_Fast_SMA_Bounce(FastSMA,SlowSMA,Close):
+    if FastSMA > SlowSMA:
+        if Close < SlowSMA:
+            return True
+        else:
+            off_perc = round(((Close - SlowSMA) / Close * 100),2)
+            print(f'Close off SlowSMA by:{off_perc}%')
+            return False
     else:
-        False
+        print('Downtrend')
+        return False
 
 def strategy(pair):
+    print(f'Currency:{pair}')
     df = gethourlydata(pair)
     applytechnicals(df)
     kline = df['%K'].iloc[-1]
     dline = df['%D'].iloc[-1]
     rsi = df.rsi.iloc[-1]
     macd = df.macd.iloc[-1]
-    trigger=f''
-    if wait_trigger(trigger,kline,dline,rsi,macd): #wait for the signals to hit
-        trigger=f'Prepare for BUY'
-    print(f'Currency:{pair}')
-    print(f'Trigger:{trigger}')
+    Close = df.Close.iloc[-1]
+    FastSMA = df.FastSMA.iloc[-1]
+    SlowSMA = df.SlowSMA.iloc[-1]
+    trigger1 = ''
+    trigger2 = ''
+    print(f'Close:{round(Close,2)}')
+    if wait_trigger_Stock_RSI_MACD(kline,dline,rsi,macd): #wait for the signals to hit
+        trigger1=f'Prepare for BUY - Stock RSI MACD'
+    if Buy_Trigger_Fast_SMA_Bounce(FastSMA,SlowSMA,Close): #wait for the signals to hit
+        trigger2=f'Prepare for BUY - Stock RSI MACD'
+
+    print(f'Trigger Stoch RSI MACD:{trigger1}')
+    print(f'Trigger Fast SMA Bounce:{trigger2}')
     print()
 
 

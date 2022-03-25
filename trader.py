@@ -6,7 +6,6 @@ import os
 import sqlite3 as sql
 from datetime import datetime
 import csv
-import time
 import configparser
 
 config = configparser.ConfigParser()
@@ -18,7 +17,7 @@ c = conn.cursor()
 client = Client(binance_keys.API_KEY,binance_keys.SECRET_KEY)
 
 binance_buy = config.get('DEFAULT','binance_buy')
-lags = config.get('DEFAULT','lags') # 5 lags is good, up for testing e.g. 25 NOT in live use 3-5 lags
+lags = int(config.get('DEFAULT','lags')) # 5 lags is good, up for testing e.g. 25 NOT in live use 3-5 lags
 printout = config.get('DEFAULT','printout')
 
 if binance_buy == 'True':
@@ -92,7 +91,7 @@ def last_update():
     conn.commit()
 
 def gethourlydata(symbol):
-    frame = pd.DataFrame(client.get_historical_klines(symbol,'1h','50 hours ago UTC'))
+    frame = pd.DataFrame(client.get_historical_klines(symbol,'1h','100 hours ago UTC'))
     frame = frame.iloc[:,:5]
     frame.columns = ['Time','Open','High','Low','Close']
     frame[['Open','High','Low','Close']] = frame[['Open','High','Low','Close']].astype(float)
@@ -156,8 +155,18 @@ def get_trigger(pair):
     conn.commit()
     return trig
 
-def wait_trigger(position,trigger,kline,dline,rsi,macd):
-    if (position == '0' or position == 0) and trigger == '' and kline < 20 and dline < 20 and rsi > 50 and macd > 0: #wait for the signals to hit
+def get_stock_drop_trigger(lags,df):
+    outcome = False
+    for i in range(lags):
+        lookback = lags - i
+        k = df['%K'].iloc[-lookback]
+        d = df['%D'].iloc[-lookback]
+        if k < 20 and d < 20:
+            outcome = True
+    return outcome
+
+def wait_trigger(position,trigger,lags,kline,dline,rsi,macd,df):
+    if (position == '0' or position == 0) and trigger == '' and get_stock_drop_trigger(lags,df) and kline > 20 and dline > 20 and rsi > 50 and macd > 0: #wait for the signals to hit
         return True
     else:
         return False
@@ -174,7 +183,7 @@ def sell_trigger(position,kline,dline):
     else:
         False
 
-def insert_log(Currency,position,trigger,close,kline,dline,rsi,macd,quantity,binance_buy,lags,printout=False):
+def insert_log(Currency,position,trigger,close,kline,dline,rsi,macd,quantity,binance_buy,lags,df,printout=False):
     c.execute(f'''INSERT INTO logs (Currency,position,trigger,close,kline,dline,rsi,macd,quantity,binance_buy,lags) 
                 VALUES ("{Currency}","{position}","{trigger}",{close},{kline},{dline},{rsi},{macd},{quantity},{binance_buy},{lags})''')
     conn.commit()
@@ -190,6 +199,7 @@ def insert_log(Currency,position,trigger,close,kline,dline,rsi,macd,quantity,bin
         print(f'Quantity:{round(quantity,2)}')
         print(f'binance_buy:{binance_buy}')
         print(f'Lags:{lags}')
+        print(f'Stock Drop Trigger:{get_stock_drop_trigger(lags,df)}')
         print()
 
 def strategy(pair,binance_buy,printout):
@@ -209,7 +219,7 @@ def strategy(pair,binance_buy,printout):
     qty = float(get_quantity(pair,close))
     if qty == 0:
         binance_buy = False
-    if wait_trigger(position,trigger,kline,dline,rsi,macd): #wait for the signals to hit
+    if wait_trigger(position,trigger,lags,kline,dline,rsi,macd,df): #wait for the signals to hit
         update_trigger(pair,'waiting')
     if buy_trigger(position,trigger,kline,dline): #once signals are set above then wait for these for a buy
         error = market_order(pair,qty,True,binance_buy,df.close,'')
@@ -220,7 +230,7 @@ def strategy(pair,binance_buy,printout):
         if error != 1:
             update_position(pair,False)
             update_trigger(pair,'')
-    insert_log(pair,position,trigger,close,kline,dline,rsi,macd,qty,binance_buy,lags,printout)
+    insert_log(pair,position,trigger,close,kline,dline,rsi,macd,qty,binance_buy,lags,df,printout)
 
 strategy('BTCUSDT',binance_buy,printout)
 last_update()
