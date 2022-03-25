@@ -141,6 +141,7 @@ for curr in currencies:
     console.print(f'[info]Binance Buy[/info][integer]:{binance_buy}[/integer]')
 
     console.print()
+    
 ## Profitability
 c.execute(f"""with last_order as (select market, market_date from orders ORDER BY market_date DESC LIMIT 1)
             , order_check as(select case when market = 'BUY' then (SELECT round(sum(case when market = "SELL" then price else price*-1 end),2) as profit FROM orders WHERE market_date != (SELECT market_date FROM last_order)) else (SELECT round(sum(case when market = "SELL" then price else price*-1 end),2) as profit FROM orders) end FROM last_order)
@@ -149,7 +150,7 @@ result = c.fetchall()
 tot_profit = clean_up_sql_out(result,1)
 if sale_made !='0':
     if tot_profit != 'None':
-        total_profit = round((float(curr_profit)/float(price['price']))*100,2)
+        total_profit = round((float(tot_profit)/float(price['price']))*100,2)
         console.print(f'[info]##### Total Profit Percentage[/info][integer]:{total_profit}%[/integer]')
         qty = 0.001
         usdt_value = float(price['price']) * qty
