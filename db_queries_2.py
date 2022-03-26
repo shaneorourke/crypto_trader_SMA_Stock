@@ -156,3 +156,27 @@ if sale_made !='0':
         usdt_value = float(price['price']) * qty
         usdt_profit = usdt_value*(total_profit/100)
         console.print(f'[info]Total USDT Profit:$[/info][integer]{round(usdt_profit,2)}[/integer]')
+
+## Days Active
+c.execute(f"select round(julianday('now') - JULIANDAY(min(log_datetime)),2) from logs")
+result = c.fetchall()
+days_active = clean_up_sql_out(result,1)
+console.print(f'[info]Days Active:[/info][integer]{days_active}[/integer]')
+
+## Winning Trades
+c.execute(f"""with buys as (select Currency, Price, row_number() over (partition by Currency order by market_date ASC) as rownum from orders where market = 'BUY')
+, sales as (select Currency, Price, row_number() over (partition by Currency order by market_date ASC) as rownum from orders where market = 'SELL')
+, trades as (select buys.Currency, case when sales.Price - buys.Price <= 0 then 'loss' else 'win' end as win_loss from buys inner join sales on buys.Currency = sales.Currency and buys.rownum = sales.rownum)
+select count(*) from trades where win_loss = 'win'""")
+result = c.fetchall()
+wins = clean_up_sql_out(result,1)
+console.print(f'[info]Winning Trades:[/info][integer]{wins}[/integer]')
+
+## Losing Trades
+c.execute(f"""with buys as (select Currency, Price, row_number() over (partition by Currency order by market_date ASC) as rownum from orders where market = 'BUY')
+, sales as (select Currency, Price, row_number() over (partition by Currency order by market_date ASC) as rownum from orders where market = 'SELL')
+, trades as (select buys.Currency, case when sales.Price - buys.Price <= 0 then 'loss' else 'win' end as win_loss from buys inner join sales on buys.Currency = sales.Currency and buys.rownum = sales.rownum)
+select count(*) from trades where win_loss = 'loss'""")
+result = c.fetchall()
+losses = clean_up_sql_out(result,1)
+console.print(f'[info]Losing Trades:[/info][integer]{losses}[/integer]')
